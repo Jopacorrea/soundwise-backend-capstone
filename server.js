@@ -4,55 +4,70 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import queryString from "query-string";
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import fs from "fs";
 
-const app = express();
+dotenv.config(); // Load environment variables
 
-// Environment variables
-dotenv.config();
+const app = express();
 const PORT = process.env.PORT || 8000;
+
+// Spotify API credentials
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirect_uri = process.env.SPOTIFY_REDIRECT_URI;
 
+// Apple API credentials
+const team_id = process.env.APPLE_TEAM_ID;
+const key_id = process.env.APPLE_KEY_ID;
+const token_key = process.env.APPLE_SECRET_TOKEN_KEY;
+const private_key_path = process.env.APPLE_PRIVATE_KEY_PATH;
+
+// Read private key for Apple authentication
+const private_key = fs.readFileSync(private_key_path, "utf8").trim();
+
+// Generate Apple JWT token
+const appleToken = jwt.sign({}, private_key, {
+  algorithm: "ES256",
+  expiresIn: "180d",
+  issuer: team_id,
+  header: { alg: "ES256", kid: key_id },
+});
+
 // Enable CORS
 app.use(cors());
 
-// Step 1: Redirect to Spotify's authorization page
+// 🔹 **Step 1: Redirect to Spotify's Authorization Page**
 app.get("/login", (req, res) => {
-  res.redirect(
-    `https://accounts.spotify.com/authorize?${queryString.stringify({
-      client_id: client_id,
-      response_type: "code",
-      redirect_uri: redirect_uri,
-      scope: "user-library-read user-read-private user-read-email",
-    })}`
-  );
+  const spotifyAuthUrl = `https://accounts.spotify.com/authorize?${queryString.stringify({
+    client_id: client_id,
+    response_type: "code",
+    redirect_uri: redirect_uri,
+    scope: "user-library-read user-read-private user-read-email",
+  })}`;
+
+  res.redirect(spotifyAuthUrl);
 });
 
+// 🔹 **Step 2: Handle Spotify OAuth Callback**
 app.get("/callback", async (req, res) => {
-  console.log("Callback route hit!");
-
+  // Get the authorization code from the query parameters
   const code = req.query.code || null;
-
-  console.log("Authorization code received:", code); // Log the authorization code
-
   if (!code) {
     return res.status(400).send("Authorization code not provided.");
   }
 
-  // Request options to exchange the authorization code for an access token
+  console.log("Authorization code received:", code);
+
+  // Exchange authorization code for an access token
   const authOptions = {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${Buffer.from(
-        `${client_id}:${client_secret}`
-      ).toString("base64")}`,
+      Authorization: `Basic ${Buffer.from(`${client_id}:${client_secret}`).toString("base64")}`,
     },
     data: queryString.stringify({
       code: code,
-      redirect_uri: redirect_uri, // This should be the same as registered in your dashboard
+      redirect_uri: redirect_uri,
       grant_type: "authorization_code",
     }),
     method: "POST",
@@ -60,58 +75,34 @@ app.get("/callback", async (req, res) => {
   };
 
   try {
-    // Request the access token from Spotify
     const response = await axios(authOptions);
     const { access_token } = response.data;
 
-    console.log("Access token received:", access_token); // Log the access token
+    console.log("Access token received:", access_token);
 
     // Fetch the user profile using the access token
     const userOptions = {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
+      headers: { Authorization: `Bearer ${access_token}` },
       method: "GET",
-      url: "https://api.spotify.com/v1/me", // Endpoint to get user profile info
+      url: "https://api.spotify.com/v1/me",
     };
 
     const userResponse = await axios(userOptions);
     const user = userResponse.data;
 
-    // Send the user data to the client
-    res.send(user);
+    res.json(user);
   } catch (error) {
     console.error("Error during token exchange:", error.response || error);
     res.status(500).send("Failed to authenticate");
   }
 });
 
-//do carinha -- apple
-const private_key = fs.readFileSync("apple_private_key.p8").toString();
-const team_id = "";
-const key_id = "";
-const token = jwt.sign({}, private_key, {
-  algorithm: "ES256",
-  expiresIn: "180d",
-  issuer: team_id,
-  header: {
-    alg: "ES256",
-    kid: key_id,
-  },
-});
-
-const token_key = "";
-
-app.get("/token", function (req, res) {
-  if (req.query.key === token_key) {
-    res.setHeader("Content-Type", "application/json");
-    res.send(JSON.stringify({ token: token }));
-  }
+// 🔹 **Step 3: Provide Apple JWT Token**
+app.get("/token", (req, res) => {
+  res.json({ token: appleToken });
 });
 
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
 });
-
-//do carinha
