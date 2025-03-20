@@ -1,105 +1,4 @@
-// // server.js
-// // npm libraries
-// import axios from "axios";
-// import express from "express";
-// import cors from "cors";
-// import dotenv from "dotenv";
-// import queryString from "query-string";
-
-// // local libraries
-// import appleMusicRouter from "./routes/apple-music-route.js";
-// import appleAuthMiddleware from "./middleware/apple-auth.js";
-// import generateAppleToken from "./utils/generateAppleToken.js";
-// import spotifyRouterFactory from "./routes/spotify-route.js";
-
-// console.log(generateAppleToken());
-
-// dotenv.config();
-
-// const app = express();
-// const PORT = process.env.PORT || 8888;
-
-// app.use(cors({
-//   origin: "http://localhost:5173", // Allow your frontend to access the backend
-//   credentials: true
-// }));
-
-// app.use(express.json());
-
-// // Generate Apple JWT Token
-// const appleToken = generateAppleToken();
-
-// // Middleware to handle Apple Music authentication
-// app.use("/apple", appleAuthMiddleware);
-
-// // Load Routes
-// app.use("/apple", appleMusicRouter);
-// app.use("/spotify", spotifyRouterFactory());
-
-// // 🔹 **Spotify Authentication - Redirect to Spotify Login**
-// app.get("/login", (req, res) => {
-//   const spotifyAuthUrl = `https://accounts.spotify.com/authorize?${queryString.stringify(
-//     {
-//       client_id: process.env.SPOTIFY_CLIENT_ID,
-//       response_type: "code",
-//       redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
-//       scope: "user-library-read user-read-private user-read-email",
-//     }
-//   )}`;
-
-//   res.redirect(spotifyAuthUrl);
-// });
-
-// // 🔹 **Spotify OAuth Callback**
-// app.get("/callback", async (req, res) => {
-//   const code = req.query.code || null;
-//   if (!code) {
-//     return res.status(400).send("Authorization code not provided.");
-//   }
-
-//   console.log("Authorization code received:", code);
-
-//   try {
-//     const response = await axios.post(
-//       "https://accounts.spotify.com/api/token",
-//       queryString.stringify({
-//         code: code,
-//         redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
-//         grant_type: "authorization_code",
-//       }),
-//       {
-//         headers: {
-//           "Content-Type": "application/x-www-form-urlencoded",
-//           Authorization: `Basic ${Buffer.from(
-//             `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
-//           ).toString("base64")}`,
-//         },
-//       }
-//     );
-
-//     const { access_token, refresh_token, expires_in } = response.data;
-//     console.log("Access Token:", access_token);
-
-//     // Store tokens temporarily for the session
-//     global.spotifyTokens = { access_token, refresh_token };
-
-//     // Redirect to frontend with the access token in the URL
-//     res.redirect(`http://localhost:5173/auth?access_token=${access_token}`);  // Modify this URL based on your frontend route
-//   } catch (error) {
-//     console.error(
-//       "Error exchanging token:",
-//       error.response?.data || error.message
-//     );
-//     res.status(500).send("Failed to authenticate");
-//   }
-// });
-
-// app.listen(PORT, () => {
-//   console.log(`Server running at http://localhost:${PORT}`);
-// });
-
 // server.js
-
 // npm libraries
 import axios from "axios";
 import express from "express";
@@ -127,7 +26,7 @@ app.use(cors({
 app.use(express.json());  // Parse JSON bodies
 
 // Generate Apple JWT Token
-const appleToken = generateAppleToken();
+let appleToken = generateAppleToken();
 console.log("Apple Music Developer Token:", appleToken);
 
 // Middleware for Apple Music authentication
@@ -191,6 +90,79 @@ app.get("/spotify/callback", async (req, res) => {
     res.status(500).send("Failed to authenticate with Spotify");
   }
 });
+
+// 🔹 **Endpoint to handle Transfer to Apple Music**
+app.post("/apple/transfer", async (req, res) => {
+  const { playlist, tracks } = req.body; // Playlist and tracks from the frontend
+
+  if (!playlist || !tracks || tracks.length === 0) {
+    return res.status(400).json({ success: false, message: "Invalid playlist or tracks data." });
+  }
+
+  try {
+    // Create playlist in Apple Music
+    const appleMusicPlaylist = await createAppleMusicPlaylist(playlist);
+
+    // Add tracks to the Apple Music playlist
+    const addTracksResponse = await addTracksToAppleMusicPlaylist(
+      appleMusicPlaylist.id,
+      tracks
+    );
+
+    if (addTracksResponse.success) {
+      res.json({ success: true, message: "Transfer successful." });
+    } else {
+      res.status(500).json({ success: false, message: "Failed to add tracks to Apple Music." });
+    }
+  } catch (error) {
+    console.error("Error during transfer to Apple Music:", error);
+    res.status(500).json({ success: false, message: "Error during transfer." });
+  }
+});
+
+// Function to create a playlist in Apple Music
+const createAppleMusicPlaylist = async (playlist) => {
+  const response = await axios.post(
+    "https://api.music.apple.com/v1/me/library/playlists",
+    {
+      attributes: {
+        name: playlist.name,
+        description: playlist.description || "No description",
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${appleToken}`,  // Use the Apple Music Developer Token
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  const data = response.data.data[0]; // Assuming the response data contains the playlist
+  return data;
+};
+
+// Function to add tracks to the Apple Music playlist
+const addTracksToAppleMusicPlaylist = async (playlistId, tracks) => {
+  // Map tracks to Apple Music URIs (you might need to search for the track on Apple Music first)
+  const trackIds = tracks.map(track => track.uri);  // Ensure track URIs are correctly formatted
+
+  const response = await axios.post(
+    `https://api.music.apple.com/v1/me/library/playlists/${playlistId}/tracks`,
+    {
+      data: trackIds.map(uri => ({ id: uri, type: "songs" })),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${appleToken}`,  // Apple Music Developer Token
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  const data = response.data;
+  return data;
+};
 
 // Start the server
 app.listen(PORT, () => {
