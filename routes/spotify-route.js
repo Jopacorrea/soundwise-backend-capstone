@@ -42,45 +42,45 @@ export default function spotifyRouterFactory() {
     }
   });
 
-  router.get("/playlists/tracks", async (req, res) => {
-    const tokens = getSpotifyTokens();
-    if (!tokens) {
-      return res.status(401).json({ error: "User not authenticated with Spotify" });
-    }
+  // router.get("/playlists/tracks", async (req, res) => {
+  //   const tokens = getSpotifyTokens();
+  //   if (!tokens) {
+  //     return res.status(401).json({ error: "User not authenticated with Spotify" });
+  //   }
   
-    const { playlistId } = req.query; // Fetch playlistId from query parameters
-    try {
-      // Fetch the playlist details first to get the tracks URL
-      const playlistUrl = `https://api.spotify.com/v1/playlists/${playlistId}`;
-      const playlistResponse = await axios.get(playlistUrl, {
-        headers: {
-          Authorization: `Bearer ${tokens.access_token}`,
-        },
-      });
+  //   const { playlistId } = req.query; // Fetch playlistId from query parameters
+  //   try {
+  //     // Fetch the playlist details first to get the tracks URL
+  //     const playlistUrl = `https://api.spotify.com/v1/playlists/${playlistId}`;
+  //     const playlistResponse = await axios.get(playlistUrl, {
+  //       headers: {
+  //         Authorization: `Bearer ${tokens.access_token}`,
+  //       },
+  //     });
   
-      // Extract the tracks URL from the playlist response
-      const tracksUrl = playlistResponse.data.tracks.href;
+  //     // Extract the tracks URL from the playlist response
+  //     const tracksUrl = playlistResponse.data.tracks.href;
   
-      // Fetch the actual tracks from the extracted URL
-      const tracksResponse = await axios.get(tracksUrl, {
-        headers: {
-          Authorization: `Bearer ${tokens.access_token}`,
-        },
-      });
+  //     // Fetch the actual tracks from the extracted URL
+  //     const tracksResponse = await axios.get(tracksUrl, {
+  //       headers: {
+  //         Authorization: `Bearer ${tokens.access_token}`,
+  //       },
+  //     });
   
-      // res.json(tracksResponse.data); // Respond with playlist tracks
+  //     // res.json(tracksResponse.data); // Respond with playlist tracks
 
-      res.json({
-        items: tracksResponse.data.items,  // Ensure this is in the correct format
-      });
-    } catch (error) {
-      console.error(
-        "Error fetching playlist tracks:",
-        error.response?.data || error.message
-      );
-      res.status(500).json({ error: "Failed to fetch playlist tracks" });
-    }
-  });
+  //     res.json({
+  //       items: tracksResponse.data.items,  // Ensure this is in the correct format
+  //     });
+  //   } catch (error) {
+  //     console.error(
+  //       "Error fetching playlist tracks:",
+  //       error.response?.data || error.message
+  //     );
+  //     res.status(500).json({ error: "Failed to fetch playlist tracks" });
+  //   }
+  // });
   
   router.get("/playlists/tracks", async (req, res) => {
     const tokens = getSpotifyTokens();
