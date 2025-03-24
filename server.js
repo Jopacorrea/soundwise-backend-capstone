@@ -166,5 +166,5 @@ const addTracksToAppleMusicPlaylist = async (playlistId, tracks) => {
 
 // Start the server
 app.listen(PORT, () => {
-  console.log(`Server running at https://soundwise-capstone.onrender.com:${PORT}`);
+  console.log(`Server running at https://soundwise-capstone.onrender.com`);
 });
