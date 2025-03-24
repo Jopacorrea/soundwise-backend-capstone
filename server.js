@@ -85,7 +85,7 @@ app.get("/spotify/callback", async (req, res) => {
     global.spotifyTokens = { access_token, refresh_token };
 
     // Redirect to frontend with access token in URL
-    res.redirect(`https://soundwise-capstone.onrender.com/auth?access_token=${access_token}`);
+    res.redirect(`https://soundwise-capstone.onrender.com/#/auth?access_token=${access_token}`);
     // res.redirect(`http://localhost:5173/auth?access_token=${access_token}`);
   } catch (error) {
     console.error("Error exchanging token:", error.response?.data || error.message);
