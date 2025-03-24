@@ -20,6 +20,7 @@ const PORT = process.env.PORT || 8888;
 // Middleware setup
 app.use(cors({
   origin: "https://soundwise-capstone.onrender.com",  // Ensure this is your React frontend URL
+  // origin: "http://localhost:5173",  // Ensure this is your React frontend URL
   credentials: true  // Allow credentials for session-based cookies
 }));
 
@@ -85,6 +86,7 @@ app.get("/spotify/callback", async (req, res) => {
 
     // Redirect to frontend with access token in URL
     res.redirect(`https://soundwise-capstone.onrender.com/auth?access_token=${access_token}`);
+    // res.redirect(`http://localhost:5173/auth?access_token=${access_token}`);
   } catch (error) {
     console.error("Error exchanging token:", error.response?.data || error.message);
     res.status(500).send("Failed to authenticate with Spotify");
@@ -166,5 +168,7 @@ const addTracksToAppleMusicPlaylist = async (playlistId, tracks) => {
 
 // Start the server
 app.listen(PORT, () => {
-  console.log(`Server running at https://soundwise-capstone.onrender.com`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Backend service URL: https://soundwise-backend-capstone.onrender.com`);
+  console.log(`Frontend application URL: https://soundwise-capstone.onrender.com`);
 });
