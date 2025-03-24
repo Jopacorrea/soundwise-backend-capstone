@@ -27,7 +27,7 @@ app.use(express.json());  // Parse JSON bodies
 
 // Generate Apple JWT Token
 let appleToken = generateAppleToken();
-console.log("Apple Music Developer Token:", appleToken);
+//console.log("Apple Music Developer Token:", appleToken);
 
 // Middleware for Apple Music authentication
 app.use("/apple", appleAuthMiddleware);  // This will authenticate users for Apple Music
